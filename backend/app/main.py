@@ -1,6 +1,7 @@
 """FastAPI main application with routes."""
 import os
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, JSONResponse
@@ -32,11 +33,28 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan manager for startup and shutdown events."""
+    # Startup
+    logger.info("Starting New Jira Client API")
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    logger.info(f"Frontend URL: {frontend_url}")
+    logger.info(f"Debug mode: {os.getenv('DEBUG', 'false')}")
+    
+    yield
+    
+    # Shutdown
+    logger.info("Shutting down New Jira Client API")
+
+
 # Initialize FastAPI app
 app = FastAPI(
     title="New Jira Client API",
     description="FastAPI proxy server for New Jira Client",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # Configure CORS
@@ -305,17 +323,3 @@ async def jira_webhook(event: WebhookEvent):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to process webhook: {str(e)}"
         )
-
-
-@app.on_event("startup")
-async def startup_event():
-    """Application startup event."""
-    logger.info("Starting New Jira Client API")
-    logger.info(f"Frontend URL: {frontend_url}")
-    logger.info(f"Debug mode: {os.getenv('DEBUG', 'false')}")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Application shutdown event."""
-    logger.info("Shutting down New Jira Client API")
